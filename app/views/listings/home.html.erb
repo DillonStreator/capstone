@@ -1,0 +1,6 @@
+<h1>Welcome to Dwelling search</h1>
+<p>We specialize in searching for convenient housing based on your new place of employment</p>
+<%= form_tag "/listings", method: :get do %>
+  Employer: <input class="form-control" type="text" name="employer" placeholder="Enter your companies name">
+  <input class="btn btn-default" type="submit" value="Search">
+<% end %>
