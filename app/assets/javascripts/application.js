@@ -13,7 +13,9 @@
 //= require jquery
 //= require bootstrap-sprockets
 //= require jquery_ujs
-//= require turbolinks
+//= require vue
+//= require init
+//= require materialize.min
 //= require_tree .
 /* eslint-disable no-undef */
 

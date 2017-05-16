@@ -1,0 +1,2 @@
+module ListingLikesHelper
+end

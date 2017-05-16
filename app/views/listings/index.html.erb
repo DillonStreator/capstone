@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html>
   <head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
+    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
     <meta charset="utf-8">
     <title>Marker Clustering</title>
   </head>
   <body>
     <input id="pac-input" class="controls" type="text" placeholder="Search Box">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=<%= @API_KEY %>&libraries=places,visualization&callback=initMap" async defer ></script>
     <div id="map"></div>
-    <script src="https://maps.googleapis.com/maps/api/js?<%= @API_KEY %>&libraries=places&callback=initMap" async defer ></script>
   </body>
 </html>
