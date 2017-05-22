@@ -16,6 +16,7 @@
 //= require vue
 //= require init
 //= require materialize.min
+//= require Chart
 //= require_tree .
 /* eslint-disable no-undef */
 

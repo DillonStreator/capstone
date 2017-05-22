@@ -10,10 +10,12 @@
           </div>
           <div class="card-content">
             <span class="card-title activator grey-text text-darken-4"><%= apartment.address %><i class="material-icons right">more info..</i></span>
-            <p><a href="<%= @zillow %><%= apartment.link %>">Make offer</a></p>
+            <p style="display:inline;"><a target="_blank" href="https://www.zillow.com<%= apartment.link %>">Make offer</a></p>
+            <p style="display:inline; float: right;"><a href="/remove_listing/<%= apartment.id %>">Remove</a></p>
           </div>
           <div class="card-reveal">
             <span class="card-title grey-text text-darken-4"><%= apartment.address %><i class="material-icons right">close</i></span>
+            <p>Rent: <%= apartment.rent %></p>
             <p>SqFt: <%= apartment.sqft %></p>
             <p>Baths: <%= apartment.baths %></p>
             <p>Beds: <%= apartment.bedrooms %></p>

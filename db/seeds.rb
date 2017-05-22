@@ -62,7 +62,7 @@ page = 1
 
 
 2.times do
-  25.times do 
+  25.times do
     url = "https://www.zillow.com/#{names[n]}-Chicago-IL/apartments/"
 
     url += "#{ page }_p/" if page > 1

@@ -34,6 +34,7 @@ gem 'bcrypt', '~> 3.1.7'
 gem 'faker'
 gem 'bootstrap-sass', '~> 3.3.6'
 gem 'unirest'
+gem 'chart-js-rails'
 
 # Use Capistrano for deployment
 # gem 'capistrano-rails', group: :development

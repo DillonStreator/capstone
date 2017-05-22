@@ -1,10 +1,16 @@
-/* global $ Vue*/
+/* global $ Vue, Chart */
 var google;
 var infowindow = null;
 var fakeInfoWindow = null;
 var searchedInfowindow = null;
 var searchedPlace = null;
 var markers = [[41.879854, -87.636311]];
+var heatmapData = [];
+var searchedLat, searchedLng, searchedLatLng;
+var directionsDisplay;
+var sortedMarkers;
+
+
 var darkStyle = [
   {elementType: 'geometry', stylers: [{color: '#242f3e'}]},
   {elementType: 'labels.text.stroke', stylers: [{color: '#242f3e'}]},
@@ -302,9 +308,11 @@ var retroStyle = [
 ];
 var standardStyle = [];
 
+
 function initMap() {
+
+  directionsDisplay = new google.maps.DirectionsRenderer({suppressMarkers: true});
   var myLatLng = new google.maps.LatLng('3510 N Springfield Ave');
-  console.log(myLatLng);
 
   for (var j = 0; j < 10; j++) {
     var lg = parseFloat((Math.random() * (-87.330000 - -87.370000) - 87.70).toFixed(6));
@@ -341,10 +349,13 @@ function initMap() {
   // more details for that place.
   searchBox.addListener('places_changed', function() {
     var places = searchBox.getPlaces();
-    var long = places[0].geometry.location.lng();
-    var lat = places[0].geometry.location.lat();
-    // console.log("Location", places[0].name, " lat/lng:", lat, long);
-    var searchCoordinates = lat + "," + long;
+    searchedLng = places[0].geometry.location.lng();
+    searchedLat = places[0].geometry.location.lat();
+    console.log(places[0].geometry.location.lat(), places[0].geometry.location.lng());
+    console.log(searchedLat, searchedLng);
+    var searchCoordinates = searchedLat + "," + searchedLng;
+    searchedLatLng = new google.maps.LatLng(searchedLat, searchedLng);
+    console.log(searchedLatLng);
 
     if (places.length === 0) {
       return;
@@ -373,11 +384,14 @@ function initMap() {
       infowindow = new google.maps.InfoWindow({
         content: "loading..."
       });
-      var promise = $.get('/api/v1/apartments');
-      $.when(promise).done(function(response) {
-        getListingDistances(map, response, lat, long);
-      });
       heatMap(map);
+      setTimeout(function() {
+        var promise = $.get('/api/v1/apartments');
+        $.when(promise).done(function(response) {
+          console.log("Inside function..",searchedLat, searchedLng);
+          getListingDistances(map, response, searchedLat, searchedLng);
+        });
+      }, 3000);
 
       fakeInfoWindow = new google.maps.InfoWindow({
         content: "loading..."
@@ -394,11 +408,8 @@ function initMap() {
   });
 }
 
-// ranking by walkability
-function rankListings(listings) {
-}
-
 function sumWalking(response) {
+  // console.log("summning the walking distances...");
   var walkingDistanceMi = [];
   var walkingDistanceFt = [];
   var nums = /\d+.\d+/;
@@ -433,110 +444,379 @@ function sumWalking(response) {
   }
 }
 
-//map, markers(faked listings), coordinates of your job/searched place
 function getListingDistances(map, markers, lat, lng) {
-  console.log(markers);
-  console.log("inside getListingDistances");
+  console.log("getting listing Distances...");
+  // console.log("inside getListingDistances");
   var i = 0;
   var markersInfo = [];
+  // console.log("END LATLNG for routing...", lat, lng);
   markers.forEach(function(sites) {
-    console.log(sites);
+    // console.log(sites);
     var siteLatLng = new google.maps.LatLng(sites['lat'], sites['lng']);
     var walkingDistance, bikeDistance, transitDistance;
 
-    var firstPromise = $.get('/api/v1/nearbyLocations?mode=walking&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + lat + ',' + lng);
-    var secondPromise = $.get('/api/v1/nearbyLocations?mode=bike&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + lat + ',' + lng);
-    var thirdPromise = $.get('/api/v1/nearbyLocations?mode=transit&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + lat + ',' + lng);
-    $.when(firstPromise, secondPromise, thirdPromise).done(function(firstResponse, secondResponse, thirdResponse) {
-      console.log(firstResponse);
-      console.log(secondResponse);
+    //crime_score = the sum of => 1 / sqrt( (lat1 - lat2)^2 + (lon1 - lon2)^2)
+    // console.log("heatmap length>>", heatmapData.length);
+    var crimeScore = 0;
+    heatmapData.forEach(function(location) {
+
+      if (sites['lat'] != null && sites['lng'] != null && location.lat() != null && location.lng() != null) {
+        // Find the distance between each listing and every crime to produce a 'crimeScore'
+        crimeScore += round(1 / Math.hypot((sites['lat'] - location.lat()), (sites['lng'] - location.lng())));
+      }
+    });
+    // console.log('the crime score is', crimeScore);
+    var start = new google.maps.LatLng(sites['lat'], sites['lng']);
+    // console.log("START AND END LATLNG's",start, end);
+    console.log('api/v1/nearbyLocations?mode=walking&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
+    var firstPromise = $.get('/api/v1/nearbyLocations?mode=walking&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
+    // var secondPromise = $.get('/api/v1/nearbyLocations?mode=bike&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + this.lat + ',' + this.lng);
+    var thirdPromise = $.get('/api/v1/nearbyLocations?mode=transit&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
+    $.when(firstPromise, thirdPromise).done(function(firstResponse, thirdResponse) {
+      // console.log(thirdResponse);
+      var duration = parseFloat(/\d{2}/.exec(thirdResponse[0].duration));
+      console.log(duration);
       walkingDistance = firstResponse[0].distance;
-      bikeDistance = secondResponse[0].distance;
+      // bikeDistance = secondResponse[0].distance;
       transitDistance = sumWalking(thirdResponse);
-      // console.log('responses: ', firstResponse[0].distance, secondResponse[0].distance, thirdResponse[0].distance);
       markersInfo.push({
-        infoWalkingDistance: walkingDistance,
-        infoBikeDistance: bikeDistance,
+        // infoWalkingDistance: walkingDistance,
+        // infoBikeDistance: bikeDistance,
+        infoTransitDuration: duration,
         infoTransitDistance: transitDistance,
-        // html: ("<div class='map-info-window'><div style='height:100%;width:50%;float:left;'><button onclick='likeListing()'>likeThisBadBoy</button>" + "<p> lat: " + sites[0] + "</p><p>lng: " + sites[1] + "</p><p>walkingDistance: " + walkingDistance + "</p><p>bikeDistance: " + bikeDistance + "</p><p>transitDistance: " + transitDistance + "miles</p><a href='/like_listing?id=" + sites['id'] + "'>Like-Listing</a></div>"
-        //   + "<div style='height:100%;width:50%;float:right;'>" + "<img style='height:200px;width:200px;' src=" + "https://upload.wikimedia.org/wikipedia/commons/9/95/1St_Leonards%2C_New_South_wales.jpg>" + "</div><a href='/like_listing?id=" + sites['id'] + "'><b>Like listing</b></a></div>"),
         html: '<div class="card">\
                 <div class="card-image waves-effect waves-block waves-light">\
-                  <img class="activator" src=' + sites['pic'] + '>\
+                  <canvas id="myChart{{chartIndex}}"></canvas>\
                 </div>\
                 <div class="card-content">\
-                  <span class="card-title activator grey-text text-darken-4">Card Title<i class="material-icons right">more_vert</i></span>\
-                  <p><a href="#">This is a link</a></p>\
+                  <span class="card-title activator grey-text text-darken-4">' + sites['address'] + '<i class="right">info..</i></span>\
+                  <a style="display:inline;" class="waves-effect waves-light btn" onclick="likeListing(' + sites['id'] + ')">Add to liked listings</a>\
                 </div>\
                 <div class="card-reveal">\
-                  <span class="card-title grey-text text-darken-4">Card Title<i class="material-icons right">close</i></span>\
-                  <p>Here is some more information about this product that is only revealed once clicked on.</p>\
+                  <span class="card-title grey-text text-darken-4">' + sites['address'] + '<i class="material-icons right">close</i></span>\
+                  <p>Rent: ' + sites['rent'] + '/mo</p>\
+                  <p>Beds: ' + sites['bedrooms'] + '</p>\
+                  <p>Baths: ' + sites['baths'] + '</p>\
+                  <p>CrimeScore: ' + crimeScore + '</p>\
+                  <p>Transit walking distance: ' + transitDistance + 'mi</p>\
+                  <p>Transit duration: ' + duration + ' mins</p>\
+                  <hr>\
+                  <img style="height:225px;width:375px;" class="activator" src=' + sites['pic'] + '>\
                 </div>\
               </div>',
         position: siteLatLng,
         map: map,
         lat: sites['lat'],
-        lng: sites['lng']
+        lng: sites['lng'],
+        crimeScore: crimeScore,
+        rent: sites['rent'],
+        beds: sites['bedrooms'],
+        baths: sites['baths'],
+        id: sites['id']
       });
       if (markersInfo.length === markers.length) {
-        console.log("DONE", markersInfo);
-        setMarkers(map, markersInfo);
+        setMarkers(map, markersInfo, searchedLat, searchedLng);
       }
-    });
+    }.bind(this));
     i++;
-  });
+  }.bind(this));
   return markersInfo;
 }
 
-function sort(array) {
-  return parseFloat(array.price) - parseFloat(array.price);
+function round(value, exp) {
+  if (typeof exp === 'undefined' || +exp === 0) {
+    return Math.round(value);
+  }
+
+  value = +value;
+  exp = +exp;
+
+  if (isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+    return NaN;
+  }
+
+  // Shift
+  value = value.toString().split('e');
+  value = Math.round(+(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp)));
+
+  // Shift back
+  value = value.toString().split('e');
+  return +(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp));
 }
 
-function setMarkers(map, markers) {
-  var sortedMarkers = markers.sort(function(a, b) {
-    return parseFloat(a.infoTransitDistance) - parseFloat(b.infoTransitDistance);
+// ranking by walkability, crimeScore & rent
+function rankListings(listings) {
+  console.log("inside rankListings..");
+  var rentWeight = 3;
+  var distanceWeight = 1.5;
+  var durationWeight = 2.5;
+  var crimeWeight = 1;
+  var calcsComplete = 0;
+  var rankedListings = listings;
+  var sortedByCrimes = [];
+  var sortedByDistances = [];
+  var sortedByDurations = [];
+  var sortedByRents = [];
+  for (var b = 0; b < listings.length; b++) {
+    rankedListings[b]['rank'] = 0.0;
+  }
+
+  sortedByDurations = sortArrBy(rankedListings, 'infoTransitDuration');
+  if (sortedByDurations.length == listings.length) {
+    for (var j = 0; j < sortedByDurations.length; j++) {
+      console.log("distanceRanking: ", (1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)) * durationWeight );
+      rankedListings[j]['rank'] += ((1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)) * durationWeight );
+      calcsComplete += 1;
+    }
+  }
+  sortedByDistances = sortArrBy(rankedListings, 'infoTransitDistance');
+  if (sortedByDistances.length == listings.length) {
+    for (var y = 0; y < sortedByDistances.length; y++) {
+      console.log("distanceRanking: ", (1 + (parseFloat(sortedByDistances[y].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance)) * (10 - 1) / (parseFloat(sortedByDistances[(sortedByDistances.length - 1)].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance))) * distanceWeight );
+      rankedListings[y]['rank'] += ((1 + (parseFloat(sortedByDistances[y].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance)) * (10 - 1) / (parseFloat(sortedByDistances[(sortedByDistances.length - 1)].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance))) * distanceWeight );
+      calcsComplete += 1;
+    }
+  }
+  sortedByCrimes = sortArrBy(rankedListings, 'crimeScore');
+  if (sortedByCrimes.length == listings.length) {
+    console.log("sortedByCrimes>>>>", sortedByCrimes);
+    for (var i = 0; i < sortedByCrimes.length; i++) {
+      console.log("crimeRanking: ",((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight ));
+      rankedListings[i]['rank'] += ((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight );
+      calcsComplete += 1;
+    }
+  }
+  sortedByRents = sortArrBy(rankedListings, 'rent');
+  if (sortedByRents.length == listings.length) {
+    for (var a = 0; a < sortedByRents.length; a++) {
+      console.log("rentRanking: ", (1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent) * rentWeight ));
+      rankedListings[a]['rank'] += (1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent) * rentWeight );
+      calcsComplete += 1;
+    }
+  }
+  console.log(calcsComplete);
+  if (calcsComplete == (listings.length * 3)) {
+    console.log("WE are inside of here");
+    return rankedListings;
+  }
+}
+
+function sortArrBy(array, criteria) {
+  console.log("inside sortArrBy...", criteria);
+  var sorted = array.sort(function(a, b) {
+    // console.log("sorting-->", a[criteria], b[criteria]);
+    return a[criteria] - b[criteria];
   });
-  var i = 0;
+  if (sorted.length == array.length) {
+    console.log("sorted by ", criteria, sorted);
+    return sorted;
+  }
+  // return parseFloat(array.criteria) - parseFloat(array.criteria);
+}
+
+function setMarkers(map, markers, lat, lng) {
+  sortedMarkers = rankListings(markers);
+  // console.log("THESE ARE THE MARKERS>>>", markers);
+  // for (var j = 0; i < markers.length - 1; i++) {
+  //   markers[j]['rank'] = (1 + (markers[j].infoTransitDuration - sortedMarkers[0].infoTransitDuration) * (10 - 1) / (sortedMarkers[(sortedMarkers.length - 1)].infoTransitDuration - sortedMarkers[0].infoTransitDuration) );
+  //   console.log("rank: ",markers[j].rank);
+  //   rankedMarkers.push(markers[j]);
+  // }
+  sortedMarkers = markers.sort(function(a, b) {
+    return parseFloat(a.rank) - parseFloat(b.rank);
+  });
+  var i = 1;
   var label = toString(i);
+  var icon;
+  var end = new google.maps.LatLng(lat, lng);
   if (sortedMarkers.length === markers.length) {
     sortedMarkers.forEach(function(site) {
-      console.log("WE ARE SETTIG THE MARKERS>>>>>" ,i, site);
+      // console.log("duration: ", site.infoTransitDuration);
+      //1 + (x-A)*(10-1)/(B-A)
+      // console.log("duration rating: ",(1 + (site.infoTransitDuration - sortedMarkers[0].infoTransitDuration) * (10 - 1) / (sortedMarkers[(sortedMarkers.length - 1)].infoTransitDuration - sortedMarkers[0].infoTransitDuration) ));
+      // if (i <= 5) {
+      //   icon = "http://chart.apis.google.com/chart?chst=d_map_spin&chld=1.2|0|FFDF00|25|_|";
+      // } else {
+      //   icon = "http://chart.apis.google.com/chart?chst=d_map_spin&chld=1|0|FF0000|12|_|";
+      // }
+      // console.log(site);
+      var start = new google.maps.LatLng(site['lat'], site['lng']); 
       var marker = new google.maps.Marker({
         position: site.position,
         map: map,
-        icon: "http://chart.apis.google.com/chart?chst=d_map_spin&chld=1|0|FF0000|12|_|" + i,
+        icon: 'assets/icons/number_' + i + '.png',
+        // icon: icon + i,
         title: "Marker" + i,
-        html: site["html"]
-        // html: ("<div class='map-info-window'><div style='height:100%;width:50%;float:left;'>" + "<p> lat: " + site.lat + "</p><p>lng: " + site.lng + "</p><p>walkingDistance: " + site.infoWalkingDistance || null + "</p><p>bikeDistance: " + site.infoBikeDistance || null + "</p><p>transitDistance: " + site.infoTransitDistance || null + "miles</p></div>"
-        //   + "<div style='height:100%;width:50%;float:right;'>" + "<img style='height:200px;width:200px;' src=" + "https://upload.wikimedia.org/wikipedia/commons/9/95/1St_Leonards%2C_New_South_wales.jpg>" + "</div></div>")
+        html: site["html"].replace("{{chartIndex}}", i).replace("{{chartIndex2}}", i),
+        //y = 1 + (x-A)*(10-1)/(B-A)
+        // crimeScore: (1 + (parseFloat(site.crimeScore) - parseFloat(crimesSorted[0].crimeScore)) * (10 - 1) / (parseFloat(crimesSorted[(crimesSorted.length - 1)].crimeScore) - parseFloat(crimesSorted[0].crimeScore)) ),
+        crimeScore: site.crimeScore,
+        rent: site.rent,
+        transitDistance: site.infoTransitDistance
       });
+      marker.chartIndex = i;
       var contentString = "station" + i;
-      google.maps.event.addListener(marker, "click", function() {
+      google.maps.event.addListener(marker, "click", function(e) {
         fakeInfoWindow.setContent(this.html);
         fakeInfoWindow.open(map, this);
+        calcRoute(start, searchedLatLng, map);
+        createChart(this);
       });
       i++;
     });
   }
 }
 
+function calcRoute(start, end, map) {
+  console.log("inside calcRoute", start, end, map);
+  directionsDisplay.setMap(null);
+
+  var directionsService = new google.maps.DirectionsService();
+  var bounds = new google.maps.LatLngBounds();
+  bounds.extend(start);
+  bounds.extend(end);
+  map.fitBounds(bounds);
+  var request = {
+    origin: start,
+    destination: end,
+    travelMode: google.maps.TravelMode.TRANSIT
+  };
+  directionsService.route(request, function(response, status) {
+    if (status === google.maps.DirectionsStatus.OK) {
+      directionsDisplay.setDirections(response);
+      directionsDisplay.setMap(map);
+    } else {
+      alert("Directions Request from " + start.toUrlValue(6) + " to " + end.toUrlValue(6) + " failed: " + status);
+    }
+  });
+}
+
+function createChart(marker) {
+  console.log("NEW CRIME SCORE=", marker.crimeScore);
+  var commute, crimeScore, rent;
+  var commuteC, crimeScoreC, rentC;
+  var commuteBC, crimeScoreBC, rentBC;
+  if (marker.rent > 2000) {//red NG
+    rent = 3;
+    rentC = 'rgba(255,0,0, 0.5)';
+    rentBC = 'rgb(220,20,60)';
+  } else if (marker.rent >= 1250 && marker.rent <= 2000) {//yellow OK
+    rent = 6;
+    rentC = 'rgba(255,255,51, 0.5)';
+    rentBC = 'rgb(255,255,0)';
+  } else if (marker.rent < 1250) {//green GOOD
+    rent = 10;
+    rentC = 'rgba(0, 255, 0, 0.5)';
+    rentBC = 'rgb(0,100,0)';
+  }
+  if (marker.crimeScore > 20000) {//red-NG
+    crimeScore = 1;
+    crimeScoreC = 'rgba(255,0,0, 0.5)';
+    crimeScoreBC = 'rgb(220,20,60)';
+  } else if (marker.crimeScore >= 19000 && marker.crimeScore <= 20000) {//red-OK
+    crimeScore = 2;
+    crimeScoreC = 'rgba(255,0,0, 0.5)';
+    crimeScoreBC = 'rgb(220,20,60)';
+  } else if (marker.crimeScore >= 18000 && marker.crimeScore <= 18999) {//red-GOOD
+    crimeScore = 3;
+    crimeScoreC = 'rgba(255,0,0, 0.5)';
+    crimeScoreBC = 'rgb(220,20,60)';
+  } else if (marker.crimeScore >= 17000 && marker.crimeScore <= 17999) {//yellow NG
+    crimeScore = 4;
+    crimeScoreC = 'rgba(255,255,51, 0.5)';
+    crimeScoreBC = 'rgb(255,255,0)';
+  } else if (marker.crimeScore >= 16000 && marker.crimeScore <= 16999) {//yellow OK
+    crimeScore = 5;
+    crimeScoreC = 'rgba(255,255,51, 0.5)';
+    crimeScoreBC = 'rgb(255,255,0)';
+  } else if (marker.crimeScore >= 15000 && marker.crimeScore <= 15999) {//yellow GOOD
+    crimeScore = 6;
+    crimeScoreC = 'rgba(255,255,51, 0.5)';
+    crimeScoreBC = 'rgb(255,255,0)';
+  } else if (marker.crimeScore >= 14000 && marker.crimeScore <= 14999) {//green NG
+    crimeScore = 7;
+    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
+    crimeScoreBC = 'rgb(0,100,0)';
+  } else if (marker.crimeScore >= 13000 && marker.crimeScore <= 13999) {//green OK
+    crimeScore = 8;
+    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
+    crimeScoreBC = 'rgb(0,100,0)';
+  } else if (marker.crimeScore >= 10000 && marker.crimeScore <= 12999) {//green OK
+    crimeScore = 9;
+    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
+    crimeScoreBC = 'rgb(0,100,0)';
+  } else if (marker.crimeScore < 10000) {//green OK
+    crimeScore = 10;
+    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
+    crimeScoreBC = 'rgb(0,100,0)';
+  }
+  if (parseFloat(marker.transitDistance) > 1.50) {//red NG
+    commute = 3;
+    commuteC = 'rgba(255,0,0, 0.5)';
+    commuteBC = 'rgb(220,20,60)';
+  } else if (parseFloat(marker.transitDistance) > 1.00 && parseFloat(marker.transitDistance) <= 1.5) {//yellow OK
+    commute = 6; 
+    commuteC = 'rgba(255,255,51, 0.5)';
+    commuteBC = 'rgb(255,255,0)';
+  } else if (parseFloat(marker.transitDistance) <= 1.00) {//green GOOD
+    commute = 10;
+    commuteC = 'rgba(0, 255, 0, 0.5)';
+    commuteBC = 'rgb(0,100,0)';
+  }
+
+  var i = marker.chartIndex;
+  var ctx = document.getElementById("myChart" + i);
+  var myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ["Commute", "CrimeScore", "Rent"],
+      datasets: [{
+        label: '# of Votes',
+        data: [commute, crimeScore, rent],
+        backgroundColor: [
+          commuteC,
+          crimeScoreC,
+          rentC
+        ],
+        borderColor: [
+          commuteBC,
+          crimeScoreBC,
+          rentBC
+        ],
+        borderWidth: 1
+      }]
+    },
+    options: {
+      scales: {
+        yAxes: [{
+          ticks: {
+            suggestedMin: 0,
+            suggestedMax: 10,
+            beginAtZero:true
+          }
+        }]
+      }
+    }
+  });
+}
 
 function heatMap(map) {
+  console.log("setting heatmap data...", map);
   var promise = $.get("/api/v1/nearbyLocations/crimes");
   $.when(promise).done(function(response) {
-    var heatmapData = [];
+    console.log(response);
     for (var i = 0; i < response.length - 1; i++) {
-      heatmapData.push(new google.maps.LatLng(response[i].latLng[1], response[i].latLng[0]));
+      this.heatmapData.push(new google.maps.LatLng(response[i].latLng[1], response[i].latLng[0]));
     }
+    console.log("heatmapData is filled...");
     var heatmap = new google.maps.visualization.HeatmapLayer({
-      data: heatmapData,
+      data: this.heatmapData,
       map: map
     });
     heatmap.setMap(map);
     // heatmap.setMap(heatmap.getMap() ? null : map);
-  });
+  }.bind(this));
 }
-
 
 function setMarker(map, marker) {
   // console.log("inside the function setMarkers");
@@ -548,13 +828,7 @@ function setMarker(map, marker) {
   var marker1 = new google.maps.Marker({
     position: siteLatLng,
     map: map,
-    icon: {
-      url: site.icon,
-      size: new google.maps.Size(71, 71),
-      origin: new google.maps.Point(0, 0),
-      anchor: new google.maps.Point(17, 34),
-      scaledSize: new google.maps.Size(25, 25)
-    },
+    icon: 'assets/icons/work.png',
     title: site.name,
     html: site.name
   });
@@ -578,6 +852,10 @@ function setMapOnAll(map) {
 
 function clearMarkers() {
   setMapOnAll(null);
+}
+
+function likeListing(id) {
+  $.get('/like_listing/' + id);
 }
 
 function deleteMarkers() {
