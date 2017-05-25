@@ -1,7 +1,7 @@
 class Api::V1::NearbyLocationsController < ApplicationController
 
   def search
-    api_key = ENV['API_KEY1']
+    api_key = ENV['API_KEY']
     @directions = Unirest.get("https://maps.googleapis.com/maps/api/directions/json?origin=#{params[:origin]}&destination=#{params[:destination]}&mode=#{params[:mode]}&key=#{api_key}").body
     @legs = @directions["routes"][0]["legs"]
     @duration_text = @directions["routes"][0]["legs"][0]['duration']['text']
@@ -14,7 +14,7 @@ class Api::V1::NearbyLocationsController < ApplicationController
   end
 
   def apartments
-    @apartments = Apartment.limit(5).uniq.pluck_to_hash(['id', 'address', 'lat', 'lng', 'sqft', 'baths', 'rent', 'bedrooms', 'link', 'pic'])
+    @apartments = Apartment.limit(50).uniq.pluck_to_hash(['id', 'address', 'lat', 'lng', 'sqft', 'baths', 'rent', 'bedrooms', 'link', 'pic'])
     p @apartments
     render "apartments.json.jbuilder"
   end

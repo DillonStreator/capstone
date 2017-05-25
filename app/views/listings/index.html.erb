@@ -21,9 +21,9 @@
     <p>This application allows for ease of apartment finding with weighted sorting on 4 criteria: <b>Transit Duration</b>, <b>Rent</b>, <b>Crime Rating</b> , and <b>Transit Walking Distance</b></p>
     <ul>
       <li><b>Transit Duration:</b> The amount of time it takes you to reach work via public transit.</li>
-      <li><b>Rent:</b> Apartment listings monthly cost... (self explanatory).</li>
-      <li><b>Crime Rating:</b> Factor of overall distance to crimes within Chicagoland area.</li>
       <li><b>Transit Walking Distance:</b> Walking distance from apartment to transit pickup point + walkind distance from transit dropoff point to work.</li>
+      <li><b>Crime Rating:</b> Factor of overall distance to crimes within Chicagoland area.</li>
+      <li><b>Rent:</b> Apartment listings monthly cost... (self explanatory).</li>
     </ul>
     <hr>
     <p><b>*A higher weight means higher priority</b> (selecting 0 disregards the criteria from the search)</p>
@@ -38,12 +38,12 @@
         <option selected="selected" value="4">4</option>
       </select>
 
-      rentWeight:
-      <select id='rentWeight' name="rentWeightName">
+      distanceWeight:
+      <select id='distanceWeight' name="distanceWeightName">
         <option value="0">0</option>
-        <option value="1">1</option>
+        <option selected="selected" value="1">1</option>
         <option value="2">2</option>
-        <option selected="selected" value="3">3</option>
+        <option value="3">3</option>
         <option value="4">4</option>
       </select>​
 
@@ -56,14 +56,15 @@
         <option value="4">4</option>
       </select>​
 
-      distanceWeight:
-      <select id='distanceWeight' name="distanceWeightName">
+      rentWeight:
+      <select id='rentWeight' name="rentWeightName">
         <option value="0">0</option>
-        <option selected="selected" value="1">1</option>
+        <option value="1">1</option>
         <option value="2">2</option>
-        <option value="3">3</option>
+        <option selected="selected" value="3">3</option>
         <option value="4">4</option>
       </select>​
+
     </div>
   </div>
   <div class="modal-footer">

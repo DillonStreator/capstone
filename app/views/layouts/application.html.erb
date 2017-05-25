@@ -15,9 +15,9 @@
   </head>
 
   <body>
-    <nav class="light-blue lighten-1" role="navigation">
+    <nav class="red lighten-1" role="navigation">
       <div class="nav-wrapper container">
-        <a id="logo-container" href="/listings" class="brand-logo">Apartments.filter</a>
+        <a id="logo-container" href="/listings" class="brand-logo">Apartment.filter()</a>
         <ul class="right hide-on-med-and-down">
           <% if current_user %>
             <li><a href="/listing_likes">My Apartments</a></li>
@@ -27,7 +27,7 @@
           <% else %>
             <li><a href="/logout">Logout</a></li>
           <% end %>
-          <li><a class='dropdown-button btn' href='#' data-activates='dropdown1'><i class="material-icons">menu</i></a></li>
+          <li><a class='grey dropdown-button btn' href='#' data-activates='dropdown1'><i class="material-icons">menu</i></a></li>
         </ul>
 
         <ul id="nav-mobile" class="side-nav" style="transform: translateX(-100%);">
