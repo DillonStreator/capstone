@@ -1,18 +1,97 @@
-<!DOCTYPE html>
-<html>
-  <head>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/css/materialize.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.2/js/materialize.min.js"></script>
-    <link href="http://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <meta charset="utf-8">
-    <title>Apartments.filter</title>
-  </head>
-  <body>
-    <input id="pac-input" class="controls" type="text" placeholder="Search Box">
-    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key=<%= @API_KEY %>&libraries=places,visualization&callback=initMap" async defer ></script>
-    <div id="map"></div>
-          
-  </body>
-</html>
+<input id="pac-input" class="controls" type="text" placeholder="Search Box">
+<!-- <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script> -->
+<script src="https://maps.googleapis.com/maps/api/js?key=<%= @API_KEY %>&libraries=places,visualization&callback=initMap" async defer ></script>
+<!-- <div style="display:block;" class="progress">
+    <div class="indeterminate"></div>
+</div> -->
+<div id="map"></div>
+
+<!-- Dropdown Structure -->
+<ul id='dropdown1' class='dropdown-content'  style="width: 300px !important">
+  <li><a href="#modal1">Search Priority</a></li>
+  <li><a href="#modal2">Map Options</a></li>
+</ul>
+
+
+
+<!-- Modal Structure -->
+<div style="width:1000px;height:700px;margin-bottom: 2.5px;" id="modal1" class="modal">
+  <div style="height:610px;" class="modal-content">
+    <h4 style="text-align: center;">Welcome</h4>
+    <p>This application allows for ease of apartment finding with weighted sorting on 4 criteria: <b>Transit Duration</b>, <b>Rent</b>, <b>Crime Rating</b> , and <b>Transit Walking Distance</b></p>
+    <ul>
+      <li><b>Transit Duration:</b> The amount of time it takes you to reach work via public transit.</li>
+      <li><b>Rent:</b> Apartment listings monthly cost... (self explanatory).</li>
+      <li><b>Crime Rating:</b> Factor of overall distance to crimes within Chicagoland area.</li>
+      <li><b>Transit Walking Distance:</b> Walking distance from apartment to transit pickup point + walkind distance from transit dropoff point to work.</li>
+    </ul>
+    <hr>
+    <p><b>*A higher weight means higher priority</b> (selecting 0 disregards the criteria from the search)</p>
+    <div id="criteriaPriorities">
+
+      durationWeight:
+      <select id='durationWeight' name="durationWeightName">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option selected="selected" value="4">4</option>
+      </select>
+
+      rentWeight:
+      <select id='rentWeight' name="rentWeightName">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option selected="selected" value="3">3</option>
+        <option value="4">4</option>
+      </select>​
+
+      crimeWeight:
+      <select id='crimeWeight' name="crimeWeightName">
+        <option value="0">0</option>
+        <option value="1">1</option>
+        <option selected="selected" value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>​
+
+      distanceWeight:
+      <select id='distanceWeight' name="distanceWeightName">
+        <option value="0">0</option>
+        <option selected="selected" value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+        <option value="4">4</option>
+      </select>​
+    </div>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat" onclick="setPriorities()">Submit</a>
+  </div>
+</div>
+
+<div style="height:265px;" id="modal2" class="modal">
+  <div class="modal-content">
+    <h4>Map Options</h4><br>
+    Map style:
+    <select id='style' name='styleName'>
+      <option value="retroStyle">Retro</option>
+      <option value="darkStyle">Dark</option>
+      <option value="standardStyle">Standard</option>
+    </select>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-action modal-close waves-effect waves-green btn-flat" onclick="setMapStyle()">Submit</a>
+  </div>
+</div>
+
+<div style="height:175px;padding-bottom:150px;" id="modal3" class="modal">
+  <div style="margin-top:10px;" class="modal-content">
+    <h4 style="text-align: center;">Filtering Apartments...</h4><br>
+    <div class="progress">
+      <div class="indeterminate">
+    </div>
+  </div>
+</div>
+

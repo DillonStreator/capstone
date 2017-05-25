@@ -9,7 +9,8 @@
             <img style="width:100%;" class="activator" src="<%= apartment.pic %>">
           </div>
           <div class="card-content">
-            <span class="card-title activator grey-text text-darken-4"><%= apartment.address %><i class="material-icons right">more info..</i></span>
+            <span class="card-title activator grey-text text-darken-4"><%= apartment.address %><i class="material-icons right">info</i></span>
+            <hr>
             <p style="display:inline;"><a target="_blank" href="https://www.zillow.com<%= apartment.link %>">Make offer</a></p>
             <p style="display:inline; float: right;"><a href="/remove_listing/<%= apartment.id %>">Remove</a></p>
           </div>
@@ -24,4 +25,15 @@
       </div>
     <% end %>
   </div>
+
 <% end %>
+
+  <!-- Dropdown Structure -->
+<!--   <ul id='dropdown1' class='dropdown-content'>
+    <li><a href="#modal1">Modal</a></li>
+    <li><a href="#!">two</a></li>
+    <li class="divider"></li>
+    <li><a href="#!">three</a></li>
+    <li><a href="#!"><i class="material-icons">view_module</i>four</a></li>
+    <li><a href="#!"><i class="material-icons">cloud</i>five</a></li>
+  </ul> -->

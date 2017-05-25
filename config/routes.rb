@@ -19,6 +19,8 @@ Rails.application.routes.draw do
       get "/nearbyLocations/crimes" => "nearby_locations#crimes"
 
       get "/apartments" => "nearby_locations#apartments"
+
+      get "/user_apartments/:id" => "nearby_locations#current_user"
     end
   end
 end

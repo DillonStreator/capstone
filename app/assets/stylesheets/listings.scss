@@ -1,5 +1,8 @@
 /* Always set the map height explicitly to define the size of the div
  * element that contains the map. */
+
+.modal {max-height: 100% !important }
+
 .infoWindow {
   height:400px;
   width: 300px;

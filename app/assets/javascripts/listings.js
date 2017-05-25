@@ -9,6 +9,12 @@ var heatmapData = [];
 var searchedLat, searchedLng, searchedLatLng;
 var directionsDisplay;
 var sortedMarkers;
+var rentWeight = 4;
+var distanceWeight = 2;
+var durationWeight = 3;
+var crimeWeight = 3;
+var map;
+var userApartments = [];
 
 
 var darkStyle = [
@@ -309,7 +315,67 @@ var retroStyle = [
 var standardStyle = [];
 
 
+
+$('.modal').modal({
+  dismissible: true, // Modal can be dismissed by clicking outside of the modal
+  opacity: .5, // Opacity of modal background
+  inDuration: 300, // Transition in duration
+  outDuration: 200, // Transition out duration
+  startingTop: '4%', // Starting top style attribute
+  endingTop: '10%', // Ending top style attribute
+  ready: function(modal, trigger) { // Callback for Modal open. Modal and trigger parameters available.
+    alert("Ready");
+    console.log(modal, trigger);
+  },
+  complete: function() {
+    console.log("CLOSING MODAL");
+    alert('Closed');
+  } // Callback for Modal close
+});
+
+function setMapStyle() {
+  console.log($("#style").find(":selected").val());
+  if ($("#style").find(":selected").val() === "retroStyle") {
+    map.setOptions({styles: retroStyle});
+  } else if ("darkStyle" === $("#style").find(":selected").val()) {
+    map.setOptions({styles: darkStyle});
+  } else if ("standardStyle" === $("#style").find(":selected").val()) {
+    map.setOptions({styles: standardStyle});
+  }
+}
+
+function setPriorities() {
+  distanceWeight = parseInt($("#distanceWeight").find(":selected").val());
+  rentWeight = parseInt($("#rentWeight").find(":selected").val());
+  durationWeight = parseInt($("#durationWeight").find(":selected").val());
+  crimeWeight = parseInt($("#crimeWeight").find(":selected").val());
+  console.log("modalReady");
+  console.log(parseInt($("#durationWeight").find(":selected").text()));
+  console.log(parseInt($("#rentWeight").find(":selected").text()));
+  console.log(parseInt($("#crimeWeight").find(":selected").text()));
+  console.log(parseInt($("#distanceWeight").find(":selected").text()));
+}
+
+$(document).ready(function() {
+  $('#modal1').modal();
+  $('#modal2').modal();
+  $('#modal3').modal();
+  $('#modal1').modal('open');
+  $('#style').material_select();
+  $('#durationWeight').material_select();
+  $('#rentWeight').material_select();
+  $('#crimeWeight').material_select();
+  $('#distanceWeight').material_select();
+});
+
 function initMap() {
+
+  var promise1 = $.get('/api/v1/user_apartments/' + getCookie('user_id'));
+  $.when(promise1).done(function(response) {
+    response.forEach(function(listingId) {
+      userApartments.push(listingId.id);
+    });
+  });
 
   directionsDisplay = new google.maps.DirectionsRenderer({suppressMarkers: true});
   var myLatLng = new google.maps.LatLng('3510 N Springfield Ave');
@@ -320,10 +386,10 @@ function initMap() {
     markers.push([lt, lg]);
   }
 
-  var map = new google.maps.Map(document.getElementById('map'), {
+  map = new google.maps.Map(document.getElementById('map'), {
     zoom: 10,
     center: new google.maps.LatLng(41.879854, -87.636311),
-    styles: retroStyle
+    styles: darkStyle
   });
 
   var myMarker = new google.maps.Marker({
@@ -348,6 +414,7 @@ function initMap() {
   // Listen for the event fired when the user selects a prediction and retrieve
   // more details for that place.
   searchBox.addListener('places_changed', function() {
+    $('#modal3').modal('open');
     var places = searchBox.getPlaces();
     searchedLng = places[0].geometry.location.lng();
     searchedLat = places[0].geometry.location.lat();
@@ -388,10 +455,9 @@ function initMap() {
       setTimeout(function() {
         var promise = $.get('/api/v1/apartments');
         $.when(promise).done(function(response) {
-          console.log("Inside function..",searchedLat, searchedLng);
           getListingDistances(map, response, searchedLat, searchedLng);
         });
-      }, 3000);
+      }, 1000);
 
       fakeInfoWindow = new google.maps.InfoWindow({
         content: "loading..."
@@ -407,6 +473,7 @@ function initMap() {
     map.fitBounds(bounds);
   });
 }
+
 
 function sumWalking(response) {
   // console.log("summning the walking distances...");
@@ -454,12 +521,10 @@ function getListingDistances(map, markers, lat, lng) {
     // console.log(sites);
     var siteLatLng = new google.maps.LatLng(sites['lat'], sites['lng']);
     var walkingDistance, bikeDistance, transitDistance;
-
     //crime_score = the sum of => 1 / sqrt( (lat1 - lat2)^2 + (lon1 - lon2)^2)
     // console.log("heatmap length>>", heatmapData.length);
     var crimeScore = 0;
     heatmapData.forEach(function(location) {
-
       if (sites['lat'] != null && sites['lng'] != null && location.lat() != null && location.lng() != null) {
         // Find the distance between each listing and every crime to produce a 'crimeScore'
         crimeScore += round(1 / Math.hypot((sites['lat'] - location.lat()), (sites['lng'] - location.lng())));
@@ -468,14 +533,12 @@ function getListingDistances(map, markers, lat, lng) {
     // console.log('the crime score is', crimeScore);
     var start = new google.maps.LatLng(sites['lat'], sites['lng']);
     // console.log("START AND END LATLNG's",start, end);
-    console.log('api/v1/nearbyLocations?mode=walking&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
     var firstPromise = $.get('/api/v1/nearbyLocations?mode=walking&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
     // var secondPromise = $.get('/api/v1/nearbyLocations?mode=bike&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + this.lat + ',' + this.lng);
     var thirdPromise = $.get('/api/v1/nearbyLocations?mode=transit&origin=' + sites['lat'] + ',' + sites['lng'] + '&destination=' + searchedLat + ',' + searchedLng);
     $.when(firstPromise, thirdPromise).done(function(firstResponse, thirdResponse) {
       // console.log(thirdResponse);
       var duration = parseFloat(/\d{2}/.exec(thirdResponse[0].duration));
-      console.log(duration);
       walkingDistance = firstResponse[0].distance;
       // bikeDistance = secondResponse[0].distance;
       transitDistance = sumWalking(thirdResponse);
@@ -489,7 +552,7 @@ function getListingDistances(map, markers, lat, lng) {
                   <canvas id="myChart{{chartIndex}}"></canvas>\
                 </div>\
                 <div class="card-content">\
-                  <span class="card-title activator grey-text text-darken-4">' + sites['address'] + '<i class="right">info..</i></span>\
+                  <span class="card-title activator grey-text text-darken-4">' + sites['address'] + '<i class="material-icons right">info</i></span>\
                   <a style="display:inline;" class="waves-effect waves-light btn" onclick="likeListing(' + sites['id'] + ')">Add to liked listings</a>\
                 </div>\
                 <div class="card-reveal">\
@@ -501,7 +564,7 @@ function getListingDistances(map, markers, lat, lng) {
                   <p>Transit walking distance: ' + transitDistance + 'mi</p>\
                   <p>Transit duration: ' + duration + ' mins</p>\
                   <hr>\
-                  <img style="height:225px;width:375px;" class="activator" src=' + sites['pic'] + '>\
+                  <img style="height:225px;width:300px;" class="activator" src=' + sites['pic'] + '>\
                 </div>\
               </div>',
         position: siteLatLng,
@@ -547,10 +610,7 @@ function round(value, exp) {
 // ranking by walkability, crimeScore & rent
 function rankListings(listings) {
   console.log("inside rankListings..");
-  var rentWeight = 3;
-  var distanceWeight = 1.5;
-  var durationWeight = 2.5;
-  var crimeWeight = 1;
+  console.log("weights:", "rentWeight=", rentWeight, " distanceWeight=", distanceWeight, " durationWeight=", durationWeight, " crimeWeight=", crimeWeight);
   var calcsComplete = 0;
   var rankedListings = listings;
   var sortedByCrimes = [];
@@ -564,8 +624,9 @@ function rankListings(listings) {
   sortedByDurations = sortArrBy(rankedListings, 'infoTransitDuration');
   if (sortedByDurations.length == listings.length) {
     for (var j = 0; j < sortedByDurations.length; j++) {
-      console.log("distanceRanking: ", (1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)) * durationWeight );
+      console.log("durationRanking: ", (1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)) * durationWeight );
       rankedListings[j]['rank'] += ((1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)) * durationWeight );
+      rankedListings[j]['graphDuration'] = round((1 + (sortedByDurations[j].infoTransitDuration - sortedByDurations[0].infoTransitDuration) * (10 - 1) / (sortedByDurations[(sortedByDurations.length - 1)].infoTransitDuration - sortedByDurations[0].infoTransitDuration)), 2);
       calcsComplete += 1;
     }
   }
@@ -574,6 +635,7 @@ function rankListings(listings) {
     for (var y = 0; y < sortedByDistances.length; y++) {
       console.log("distanceRanking: ", (1 + (parseFloat(sortedByDistances[y].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance)) * (10 - 1) / (parseFloat(sortedByDistances[(sortedByDistances.length - 1)].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance))) * distanceWeight );
       rankedListings[y]['rank'] += ((1 + (parseFloat(sortedByDistances[y].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance)) * (10 - 1) / (parseFloat(sortedByDistances[(sortedByDistances.length - 1)].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance))) * distanceWeight );
+      rankedListings[y]['graphDistance'] = round((1 + (parseFloat(sortedByDistances[y].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance)) * (10 - 1) / (parseFloat(sortedByDistances[(sortedByDistances.length - 1)].infoTransitDistance) - parseFloat(sortedByDistances[0].infoTransitDistance))), 2);
       calcsComplete += 1;
     }
   }
@@ -583,20 +645,21 @@ function rankListings(listings) {
     for (var i = 0; i < sortedByCrimes.length; i++) {
       console.log("crimeRanking: ",((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight ));
       rankedListings[i]['rank'] += ((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight );
+      rankedListings[i]['graphCrime'] = round((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))), 2);
       calcsComplete += 1;
     }
   }
   sortedByRents = sortArrBy(rankedListings, 'rent');
   if (sortedByRents.length == listings.length) {
     for (var a = 0; a < sortedByRents.length; a++) {
-      console.log("rentRanking: ", (1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent) * rentWeight ));
-      rankedListings[a]['rank'] += (1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent) * rentWeight );
+      console.log("rentRanking: ", ((1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent)) * rentWeight ));
+      rankedListings[a]['rank'] += ((1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent)) * rentWeight );
+      rankedListings[a]['graphRent'] = round((1 + (sortedByRents[a].rent - sortedByRents[0].rent) * (10 - 1) / (sortedByRents[(sortedByRents.length - 1)].rent - sortedByRents[0].rent)), 2);
       calcsComplete += 1;
     }
   }
   console.log(calcsComplete);
   if (calcsComplete == (listings.length * 3)) {
-    console.log("WE are inside of here");
     return rankedListings;
   }
 }
@@ -625,6 +688,8 @@ function setMarkers(map, markers, lat, lng) {
   sortedMarkers = markers.sort(function(a, b) {
     return parseFloat(a.rank) - parseFloat(b.rank);
   });
+  $('#modal3').modal('close');
+  map.setZoom(12);
   var i = 1;
   var label = toString(i);
   var icon;
@@ -652,7 +717,12 @@ function setMarkers(map, markers, lat, lng) {
         // crimeScore: (1 + (parseFloat(site.crimeScore) - parseFloat(crimesSorted[0].crimeScore)) * (10 - 1) / (parseFloat(crimesSorted[(crimesSorted.length - 1)].crimeScore) - parseFloat(crimesSorted[0].crimeScore)) ),
         crimeScore: site.crimeScore,
         rent: site.rent,
-        transitDistance: site.infoTransitDistance
+        transitDistance: site.infoTransitDistance,
+        transitDuration: site.infoTransitDuration,
+        graphCrime: site.graphCrime,
+        graphDistance: site.graphDistance,
+        graphRent: site.graphRent,
+        graphDuration: site.graphDuration
       });
       marker.chartIndex = i;
       var contentString = "station" + i;
@@ -665,6 +735,12 @@ function setMarkers(map, markers, lat, lng) {
       i++;
     });
   }
+}
+
+function getCookie(name) {
+  var value = "; " + document.cookie;
+  var parts = value.split("; " + name + "=");
+  if (parts.length == 2) return parts.pop().split(";").shift();
 }
 
 function calcRoute(start, end, map) {
@@ -692,76 +768,42 @@ function calcRoute(start, end, map) {
 }
 
 function createChart(marker) {
-  console.log("NEW CRIME SCORE=", marker.crimeScore);
-  var commute, crimeScore, rent;
-  var commuteC, crimeScoreC, rentC;
-  var commuteBC, crimeScoreBC, rentBC;
-  if (marker.rent > 2000) {//red NG
-    rent = 3;
+  console.log("THIS IS THE MARKER INSIDE CREATECHART=", marker);
+  var commuteDistance, crimeScore, rent;
+  var commuteDistanceC, crimeScoreC, rentC;
+  var commuteDistanceBC, crimeScoreBC, rentBC;
+  if (marker.graphRent >= 7) {//red NG
+    // rent = 1;
     rentC = 'rgba(255,0,0, 0.5)';
     rentBC = 'rgb(220,20,60)';
-  } else if (marker.rent >= 1250 && marker.rent <= 2000) {//yellow OK
-    rent = 6;
+  } else if (marker.graphRent >= 4 && marker.graphRent < 7) {
+    // rent = 4;
     rentC = 'rgba(255,255,51, 0.5)';
     rentBC = 'rgb(255,255,0)';
-  } else if (marker.rent < 1250) {//green GOOD
-    rent = 10;
+  } else if (marker.graphRent >= 1 && marker.graphRent <= 3.99) {//green GOOD
+    // rent = 10;
     rentC = 'rgba(0, 255, 0, 0.5)';
     rentBC = 'rgb(0,100,0)';
   }
-  if (marker.crimeScore > 20000) {//red-NG
-    crimeScore = 1;
+  if (marker.graphCrime >= 7) {//red-NG
     crimeScoreC = 'rgba(255,0,0, 0.5)';
     crimeScoreBC = 'rgb(220,20,60)';
-  } else if (marker.crimeScore >= 19000 && marker.crimeScore <= 20000) {//red-OK
-    crimeScore = 2;
-    crimeScoreC = 'rgba(255,0,0, 0.5)';
-    crimeScoreBC = 'rgb(220,20,60)';
-  } else if (marker.crimeScore >= 18000 && marker.crimeScore <= 18999) {//red-GOOD
-    crimeScore = 3;
-    crimeScoreC = 'rgba(255,0,0, 0.5)';
-    crimeScoreBC = 'rgb(220,20,60)';
-  } else if (marker.crimeScore >= 17000 && marker.crimeScore <= 17999) {//yellow NG
-    crimeScore = 4;
+  } else if (marker.graphCrime >= 4 && marker.graphCrime < 7) {//yellow NG
     crimeScoreC = 'rgba(255,255,51, 0.5)';
     crimeScoreBC = 'rgb(255,255,0)';
-  } else if (marker.crimeScore >= 16000 && marker.crimeScore <= 16999) {//yellow OK
-    crimeScore = 5;
-    crimeScoreC = 'rgba(255,255,51, 0.5)';
-    crimeScoreBC = 'rgb(255,255,0)';
-  } else if (marker.crimeScore >= 15000 && marker.crimeScore <= 15999) {//yellow GOOD
-    crimeScore = 6;
-    crimeScoreC = 'rgba(255,255,51, 0.5)';
-    crimeScoreBC = 'rgb(255,255,0)';
-  } else if (marker.crimeScore >= 14000 && marker.crimeScore <= 14999) {//green NG
-    crimeScore = 7;
-    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
-    crimeScoreBC = 'rgb(0,100,0)';
-  } else if (marker.crimeScore >= 13000 && marker.crimeScore <= 13999) {//green OK
-    crimeScore = 8;
-    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
-    crimeScoreBC = 'rgb(0,100,0)';
-  } else if (marker.crimeScore >= 10000 && marker.crimeScore <= 12999) {//green OK
-    crimeScore = 9;
-    crimeScoreC = 'rgba(0, 255, 0, 0.5)';
-    crimeScoreBC = 'rgb(0,100,0)';
-  } else if (marker.crimeScore < 10000) {//green OK
-    crimeScore = 10;
+  } else if (marker.graphCrime >= 1 && marker.graphCrime <= 3.99) {//green NG
     crimeScoreC = 'rgba(0, 255, 0, 0.5)';
     crimeScoreBC = 'rgb(0,100,0)';
   }
-  if (parseFloat(marker.transitDistance) > 1.50) {//red NG
-    commute = 3;
-    commuteC = 'rgba(255,0,0, 0.5)';
-    commuteBC = 'rgb(220,20,60)';
-  } else if (parseFloat(marker.transitDistance) > 1.00 && parseFloat(marker.transitDistance) <= 1.5) {//yellow OK
-    commute = 6; 
-    commuteC = 'rgba(255,255,51, 0.5)';
-    commuteBC = 'rgb(255,255,0)';
-  } else if (parseFloat(marker.transitDistance) <= 1.00) {//green GOOD
-    commute = 10;
-    commuteC = 'rgba(0, 255, 0, 0.5)';
-    commuteBC = 'rgb(0,100,0)';
+  if (marker.graphDuration >= 7) {//red NG
+    commuteDistanceC = 'rgba(255,0,0, 0.5)';
+    commuteDistanceBC = 'rgb(220,20,60)';
+  } else if (marker.graphDuration >= 4 && marker.graphDuration < 7) {//yellow OK
+    commuteDistanceC = 'rgba(255,255,51, 0.5)';
+    commuteDistanceBC = 'rgb(255,255,0)';
+  } else if (marker.graphDuration >= 1 && marker.graphDuration <= 3.99) {//green GOOD
+    commuteDistanceC = 'rgba(0, 255, 0, 0.5)';
+    commuteDistanceBC = 'rgb(0,100,0)';
   }
 
   var i = marker.chartIndex;
@@ -769,17 +811,17 @@ function createChart(marker) {
   var myChart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ["Commute", "CrimeScore", "Rent"],
+      labels: ["Commute", "Crime", "Rent"],
       datasets: [{
-        label: '# of Votes',
-        data: [commute, crimeScore, rent],
+        label: "Rankings",
+        data: [marker.graphDuration, marker.graphCrime, marker.graphRent],
         backgroundColor: [
-          commuteC,
+          commuteDistanceC,
           crimeScoreC,
           rentC
         ],
         borderColor: [
-          commuteBC,
+          commuteDistanceBC,
           crimeScoreBC,
           rentBC
         ],
@@ -854,8 +896,10 @@ function clearMarkers() {
   setMapOnAll(null);
 }
 
-function likeListing(id) {
+function likeListing(id, thing) {
+  console.log("this>>", thing);
   $.get('/like_listing/' + id);
+
 }
 
 function deleteMarkers() {
