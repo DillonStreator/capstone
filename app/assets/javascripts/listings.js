@@ -641,11 +641,10 @@ function rankListings(listings) {
   }
   sortedByCrimes = sortArrBy(rankedListings, 'crimeScore');
   if (sortedByCrimes.length == listings.length) {
-    console.log("sortedByCrimes>>>>", sortedByCrimes);
     for (var i = 0; i < sortedByCrimes.length; i++) {
-      console.log("crimeRanking: ",((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight ));
-      rankedListings[i]['rank'] += ((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))) * crimeWeight );
-      rankedListings[i]['graphCrime'] = round((1 + (parseInt(sortedByCrimes[i].crimeScore) - parseInt(sortedByCrimes[0].crimeScore)) * (10 - 1) / (parseInt(sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - parseInt(sortedByCrimes[0].crimeScore))), 2);
+      console.log("crimeRanking: ",((1 + ((sortedByCrimes[i].crimeScore) - (sortedByCrimes[0].crimeScore)) * (10 - 1) / ((sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - (sortedByCrimes[0].crimeScore))) * crimeWeight ));
+      rankedListings[i]['rank'] += ((1 + ((sortedByCrimes[i].crimeScore) - (sortedByCrimes[0].crimeScore)) * (10 - 1) / ((sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - (sortedByCrimes[0].crimeScore))) * crimeWeight );
+      rankedListings[i]['graphCrime'] = round((1 + ((sortedByCrimes[i].crimeScore) - (sortedByCrimes[0].crimeScore)) * (10 - 1) / ((sortedByCrimes[(sortedByCrimes.length - 1)].crimeScore) - (sortedByCrimes[0].crimeScore))), 2);
       calcsComplete += 1;
     }
   }
@@ -667,7 +666,7 @@ function rankListings(listings) {
 function sortArrBy(array, criteria) {
   console.log("inside sortArrBy...", criteria);
   var sorted = array.sort(function(a, b) {
-    // console.log("sorting-->", a[criteria], b[criteria]);
+    console.log("sorting-->", a[criteria], b[criteria]);
     return a[criteria] - b[criteria];
   });
   if (sorted.length == array.length) {
@@ -813,8 +812,8 @@ function createChart(marker) {
     data: {
       labels: ["Commute", "Crime", "Rent"],
       datasets: [{
-        label: "Rankings",
-        data: [marker.graphDuration, marker.graphCrime, marker.graphRent],
+        label: "Results",
+        data: [round(((marker.graphDuration + marker.graphDistance) / 2), 2), marker.graphCrime, marker.graphRent],
         backgroundColor: [
           commuteDistanceC,
           crimeScoreC,
